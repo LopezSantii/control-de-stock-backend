@@ -15,10 +15,10 @@ app.get("/test", (req, res) => {
 });
 
 const db = mysql.createConnection({
-  host: "localhost",
-  user: "root",
-  password: "santiago1",
-  database: "control_stock",
+  host: "193.203.175.53",
+  user: "u607522211__lopezsantii",
+  password: "Lopezsanti1",
+  database: "u607522211_controlDeStock",
 });
 
 db.connect((err) => {
