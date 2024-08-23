@@ -1,34 +1,30 @@
 const express = require("express");
+require("dotenv").config();
 const cors = require("cors");
 const app = express();
-const mysql = require("mysql2");
+const { Pool } = require("pg");
 const bodyParser = require("body-parser");
 
 app.use(cors());
-
 app.use(bodyParser.json());
-
 app.use(express.json());
 
 app.get("/test", (req, res) => {
   res.send("Test endpoint is working!");
 });
 
-const db = mysql.createConnection({
-  host: "193.203.175.53",
-  user: "u607522211__lopezsantii",
-  password: "Lopezsanti1",
-  database: "u607522211_controlDeStock",
+const pool = new Pool({
+  connectionString: process.env.POSTGRES_URL, // Usa la variable de entorno de Vercel
 });
 
-db.connect((err) => {
+pool.connect((err) => {
   if (err) throw err;
-  console.log("Connected to the database");
+  console.log("Connected to the PostgreSQL database");
 });
 
 // Ruta para obtener todos los productos
 app.get("/api/products", (req, res) => {
-  db.query("SELECT * FROM products", (err, results) => {
+  pool.query("SELECT * FROM products", (err, results) => {
     if (err) throw err;
     res.json(results);
   });
@@ -42,7 +38,7 @@ app.get("/api/stock-movements", (req, res) => {
     JOIN products ON stock_movements.producto_id = products.id
   `;
 
-  db.query(query, (err, results) => {
+  pool.query(query, (err, results) => {
     if (err) {
       res.status(500).json({ error: "Database query failed" });
     } else {
@@ -54,7 +50,7 @@ app.get("/api/stock-movements", (req, res) => {
 // Ruta para agregar un nuevo producto
 app.post("/api/products", (req, res) => {
   const { nombre, descripcion, precio, cantidad } = req.body;
-  db.query(
+  pool.query(
     "INSERT INTO products (nombre, descripcion, precio, cantidad) VALUES (?, ?, ?, ?)",
     [nombre, descripcion, precio, cantidad],
     (err, result) => {
@@ -68,7 +64,7 @@ app.post("/api/products", (req, res) => {
 app.delete("/api/products", (req, res) => {
   const { productId } = req.body;
 
-  db.query(
+  pool.query(
     "DELETE FROM stock_movements WHERE producto_id = ?",
     [productId],
     (err) => {
@@ -78,7 +74,7 @@ app.delete("/api/products", (req, res) => {
           .json({ error: "Failed to delete stock movements" });
       }
 
-      db.query(
+      pool.query(
         "DELETE FROM products WHERE id = ?",
         [productId],
         (err, result) => {
@@ -102,7 +98,7 @@ app.delete("/api/products", (req, res) => {
 app.delete("/api/stock-movements", (req, res) => {
   const { movementid } = req.body;
 
-  db.query(
+  pool.query(
     "DELETE FROM stock_movements WHERE id = ?",
     [movementid],
     (err, result) => {
@@ -122,14 +118,14 @@ app.delete("/api/stock-movements", (req, res) => {
 // Ruta para registrar un movimiento de stock
 app.post("/api/stock-movement", (req, res) => {
   const { producto_id, tipo, cantidad } = req.body;
-  db.query(
+  pool.query(
     "INSERT INTO stock_movements (producto_id, tipo, cantidad, fecha) VALUES (?, ?, ?, NOW())",
     [producto_id, tipo, cantidad],
     (err, result) => {
       if (err) throw err;
       // Actualiza la cantidad en productos
       const sign = tipo === "entrada" ? "+" : "-";
-      db.query(
+      pool.query(
         `UPDATE products SET cantidad = cantidad ${sign} ? WHERE id = ?`,
         [cantidad, producto_id],
         (err) => {
